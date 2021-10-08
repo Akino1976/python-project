@@ -1,0 +1,65 @@
+version: "3.8"
+networks:
+  db_bridge:
+    external: false
+    name: db_bridge
+
+services:
+
+  unittests:
+    container_name: unittests-framework:${VERSION}
+    build:
+      context: ./tests/unit
+      dockerfile: Dockerfile
+    environment:
+      APP-ENVIRONMENT: local
+      VERSION: ${VERSION}
+    networks:
+      - db_bridge
+    volumes:
+      - .:/usr/src/app/
+
+  unittests-watch:
+    container_name: unittests-framework-watch:${VERSION}
+    build:
+      context: ./tests/unit
+      dockerfile: Dockerfile
+    environment:
+      APP-ENVIRONMENT: local
+      VERSION: ${VERSION}
+    networks:
+      - db_bridge
+    entrypoint: ptw
+    command: --ext=py,feature --ignore=/.cache/** --config pytest.cfg -p --pdb
+    volumes:
+      - .:/usr/src/app/
+
+  systemtests:
+    container_name: systemtests-framework:${VERSION}
+    build:
+      context: ./tests/system
+      dockerfile: Dockerfile
+    networks:
+      - db_bridge
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      DEFAULT_TIMEZONE: Europe/Stockholm
+      APP_ENVIRONMENT: docker
+    volumes:
+      - .:/usr/src/app/
+
+  systemtests-watch:
+    container_name: systemtests-framework-watch:${VERSION}
+    build:
+      context: ./tests/system
+      dockerfile: Dockerfile
+    networks:
+      - db_bridge
+    entrypoint: ptw
+    command: --ext=py,feature --ignore=/.cache/** --config pytest.cfg -p --pdb
+    environment:
+      PYTHONDONTWRITEBYTECODE: 1
+      DEFAULT_TIMEZONE: Europe/Stockholm
+      APP_ENVIRONMENT: docker
+    volumes:
+      - .:/usr/src/app/

@@ -1,0 +1,102 @@
+[tool.poetry]
+name = "python-project"
+version = "0.1.0"
+description = ""
+authors = ["Some"]
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+    |\.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | \.feature
+    | .*assets/
+    | .*tests/*
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+use_parentheses = true
+order_by_type = true
+balanced_wrapping = true
+force_grid_wrap = 0
+lines_after_imports = -1
+lines_between_sections = 1
+lines_between_types =  0
+force_alphabetical_sort_within_sections = true
+line_length = 80
+float_to_top = true
+sections = [
+  "FUTURE",
+  "STDLIB",
+  "FIRSTPARTY",
+  "THIRDPARTY",
+  "LOCALFOLDER"
+]
+
+known_standard_library = [
+  "builtins",
+  "collections",
+  "contextlib",
+  "csv",
+  "datetime",
+  "enum",
+  "functools",
+  "glob",
+  "hashlib",
+  "importlib",
+  "io",
+  "json",
+  "logging",
+  "ModuleType",
+  "operator",
+  "os",
+  "re",
+  "textwrap",
+  "typing"
+]
+known_third_party = [
+  "yaml"
+]
+known_local_folder = [
+  "jobs",
+  "helpers",
+  "tests",
+  "common",
+  "settings",
+  "steps"
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+PyYAML = "^5.4.1"
+click = "^8.0.1"
+
+[tool.poetry.dev-dependencies]
+pre-commit = "^2.15.0"
+flake8 = "^3.9.2"
+isort = "^5.9.3"
+black = "^21.9b0"
+pytest-bdd = "^4.1.0"
+pytest-watch = "^4.2.0"
+pytest-xdist = "^2.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
