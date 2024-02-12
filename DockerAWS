@@ -1,0 +1,75 @@
+ARG PYTHON_VERSION=3.10.5
+FROM r-docker-docker-hub.artifactory.klarna.net/python:${PYTHON_VERSION}-slim-bullseye as python-base
+
+ENV PYTHONPATH=$PYTHONPATH:/usr/local
+ARG FUNCTION_DIR="/function/acknowledgement" \
+    AWS_REGION \
+    AWS_ACCESS_KEY_ID \
+    AWS_SECRET_ACCESS_KEY \
+    ENVIRONMENT \
+    JOB_PRODUCER_SQS \
+    S3_BUCKET \
+    DB_ENDPOINT \
+    DB_USERNAME \
+    DB_ANALYTICS_ENDPOINT \
+    DB_ANALYTICS_USERNAME
+
+RUN mkdir -p ${FUNCTION_DIR}
+COPY ./handler/ ${FUNCTION_DIR}
+
+ENV PATH="$PATH:/runtime/bin"
+ENV PYTHONFAULTHANDLER=1 \
+    KAFKA_VERSION=2.0.2 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=random \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    PYTHONPATH="$PYTHONPATH:/runtime/lib/python3.10/site-packages" \
+    POETRY_VERSION=1.3.1
+
+FROM python-base as builder-base
+RUN apt-get update &&\
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+    && apt-get clean \
+    && apt-get autoremove --yes \
+    && rm -rf /var/lib/apt/list/*
+
+RUN apt-get install -y  libssl-dev
+
+RUN curl -L --compressed https://github.com/edenhill/librdkafka/archive/v${KAFKA_VERSION}.tar.gz -o v${KAFKA_VERSION}.tar.gz \
+    && tar xvzf v${KAFKA_VERSION}.tar.gz \
+    && cd librdkafka-${KAFKA_VERSION}/ \
+    && ./configure --enable-ssl \
+    && make \
+    && make install \
+    && ldconfig \
+    && rm -rf v${KAFKA_VERSION}.tar.gz
+
+RUN apt-get update && apt-get install -y librdkafka-dev
+
+RUN pip install "poetry==$POETRY_VERSION"
+ARG FUNCTION_DIR="/function/acknowledgement"
+WORKDIR ${FUNCTION_DIR}
+RUN poetry export --without-hashes --no-interaction --no-ansi -f requirements.txt -o requirements.txt
+RUN pip install --prefix=/runtime --force-reinstall -r requirements.txt
+RUN pip install --target ${FUNCTION_DIR} \
+    --no-cache-dir \
+    awslambdaric
+
+FROM python-base as main
+ARG FUNCTION_DIR="/function/acknowledgement"
+WORKDIR ${FUNCTION_DIR}
+
+COPY --from=builder-base /usr/local/lib/librdkafka* /usr/local/lib
+COPY --from=builder-base /runtime /usr/local
+COPY --from=builder-base ${FUNCTION_DIR} ${FUNCTION_DIR}
+
+RUN apt-get update && apt-get install -y librdkafka-dev
+RUN pip install ipython
+ENTRYPOINT [ "/usr/local/bin/python", "-m", "awslambdaric" ]
+CMD [ "run_acknowledgement.testhandler" ]
